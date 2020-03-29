@@ -32,7 +32,7 @@ if (map!=null) {
 	System.out.println(map);
 }
 ```
-![javaex](http://img.javaex.cn/FgwBRBNOTYwvMewFxvuBqZ6HfAqR)
+![javaex](https://images.gitee.com/uploads/images/2020/0329/201403_d7fbbbfb_1712536.png)
 
 
 
@@ -42,7 +42,7 @@ if (map!=null) {
 
 #### 插件文档地址
 
-[http://doc.javaex.cn/document/36](http://doc.javaex.cn/document/36)
+[http://doc.javaex.cn/document/37](http://doc.javaex.cn/document/37)
 
 
 #### 官网
