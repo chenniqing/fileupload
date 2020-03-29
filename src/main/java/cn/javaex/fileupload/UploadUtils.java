@@ -3,6 +3,9 @@ package cn.javaex.fileupload;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStream;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Date;
@@ -14,6 +17,7 @@ import javax.imageio.ImageIO;
 
 import org.apache.commons.codec.digest.DigestUtils;
 import org.apache.commons.fileupload.disk.DiskFileItem;
+import org.apache.commons.io.IOUtils;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.multipart.commons.CommonsMultipartFile;
 
@@ -25,6 +29,7 @@ import cn.javaex.fileupload.exception.FileSizeException;
 import cn.javaex.fileupload.exception.UploadException;
 import cn.javaex.fileupload.verify.FileTypeVerify;
 import net.coobird.thumbnailator.Thumbnails;
+import sun.misc.BASE64Decoder;
 
 /**
  * 文件上传工具类
@@ -32,6 +37,95 @@ import net.coobird.thumbnailator.Thumbnails;
  * @author 陈霓清
  */
 public class UploadUtils {
+	
+	/**
+	 * 上传base64
+	 * @param base64
+	 * @param uploadPath
+	 * @return 
+	 */
+	public static Map<String, String> uploadBase64(String base64, String uploadPath) {
+		return uploadBase64(base64, uploadPath, false);
+	}
+	
+	/**
+	 * 上传base64
+	 * @param base64
+	 * @param uploadPath
+	 * @return 
+	 * @throws IOException
+	 */
+	@SuppressWarnings("deprecation")
+	public static Map<String, String> uploadBase64(String base64, String uploadPath, boolean isGenerateByDate) {
+		if (base64.indexOf("jpeg")>=0) {
+			base64 = base64.substring(23);
+		} else {
+			base64 = base64.substring(22);
+		}
+		
+		// 新生成的图片名称
+		String fileMd5 = UUID.randomUUID().toString().replace("-", "");
+		
+		// 路径格式转换
+		uploadPath = PathUtils.slashify(uploadPath);
+		
+		// 根据日期自动创建3级目录
+		if (isGenerateByDate) {
+			Date date = new Date();
+			String dateFolder = new SimpleDateFormat("yyyy/MM/dd").format(date);
+			// 设置文件存储目录
+			uploadPath = uploadPath + "/" + dateFolder;
+		}
+		
+		// 传入的路径是否是绝对路径
+		boolean isAbsolutePath = PathUtils.isAbsolutePath(uploadPath);
+		
+		// 存储文件的物理路径
+		String filePath = "";
+		if (isAbsolutePath) {
+			filePath = uploadPath;
+		} else {
+			String projectPath = PathUtils.getProjectPath();
+			filePath = projectPath + File.separator + uploadPath;
+		}
+		
+		// 自动创建文件夹
+		File f = new File(filePath);
+		f.mkdirs();
+		
+		// 上传后的文件路径
+		String fileUrl = uploadPath + "/" + fileMd5 + ".jpg";
+		
+		OutputStream out = null;
+		try {
+			BASE64Decoder decoder = new BASE64Decoder();
+			byte[] byteArr = decoder.decodeBuffer(base64);
+			out = new FileOutputStream(fileUrl);
+			out.write(byteArr);
+			out.flush();
+			out.close();
+		} catch (Exception e) {
+			throw new UploadException(e.getMessage());
+		} finally {
+			IOUtils.closeQuietly(out);
+		}
+		
+		// 绝对路径
+		String fileAbsoluteUrl = fileUrl;
+		if (!isAbsolutePath) {
+			String serverPath = PathUtils.getServerPath();
+			fileAbsoluteUrl = serverPath + "/" + uploadPath + "/" + fileMd5 + ".jpg";
+		}
+		
+		// 返回map
+		Map<String, String> map = new HashMap<String, String>();
+		map.put("fileName", fileMd5 + ".jpg");          // 文件名称
+		map.put("fileUrl", fileUrl);                    // 文件路径
+		map.put("fileAbsoluteUrl", fileAbsoluteUrl);    // 文件绝对路径
+		
+		return map;
+	}
+	
 	
 	/**
 	 * 上传文件
@@ -196,47 +290,43 @@ public class UploadUtils {
 						
 						String toPic = "";
 						
-						switch (settingType) {
-							case "compress":
-								toPic = absolutePath + "/" + smallFileMd5 + "." + fileSuffix;
-								Thumbnails.of(fromPic).size(imageSetting.getMaxWidth(), imageSetting.getMaxHeight()).toFile(toPic);
-								break;
-							case "compress_watermark":
-							case "watermark":
-								toPic = absolutePath + "/" + smallFileMd5 + "." + fileSuffix;
-								// 水印图片
-								BufferedImage watermark = ImageIO.read(new File(imageSetting.getWatermarkImagePath()));
-								
-								// 判断水印添加对象
-								// 大图添加水印
-								if (Arrays.asList(imageSetting.getWatermarkObjArr()).contains("big")) {
-									fileMd5_watermark = fileMd5 + "_" + ImageName.WATERMARK.getValue();
-									String toPic_big = absolutePath + "/" + fileMd5_watermark + "." + fileSuffix;
+						// 压缩
+						if ("compress".equals(settingType)) {
+							toPic = absolutePath + "/" + smallFileMd5 + "." + fileSuffix;
+							Thumbnails.of(fromPic).size(imageSetting.getMaxWidth(), imageSetting.getMaxHeight()).toFile(toPic);
+						}
+						// 压缩+水印 或 单独添加水印
+						else if ("compress_watermark".equals(settingType) || "watermark".equals(settingType)) {
+							toPic = absolutePath + "/" + smallFileMd5 + "." + fileSuffix;
+							// 水印图片
+							BufferedImage watermark = ImageIO.read(new File(imageSetting.getWatermarkImagePath()));
+							
+							// 判断水印添加对象
+							// 大图添加水印
+							if (Arrays.asList(imageSetting.getWatermarkObjArr()).contains("big")) {
+								fileMd5_watermark = fileMd5 + "_" + ImageName.WATERMARK.getValue();
+								String toPic_big = absolutePath + "/" + fileMd5_watermark + "." + fileSuffix;
+								// 只有当水印图片比原图的1/3还小时，才添加水印
+								if (watermark.getWidth() < fromPic.getWidth()/3 && watermark.getHeight() < fromPic.getHeight()/3) {
+									Thumbnails.of(fromPic).size(fromPic.getWidth(), fromPic.getHeight()).watermark(imageSetting.getPosition(), watermark, imageSetting.getOpacity()).toFile(toPic_big);
+								}
+							}
+							// 小图添加水印
+							if (imageSetting.getCriticalValue()<fileSize) {
+								if (Arrays.asList(imageSetting.getWatermarkObjArr()).contains("small") && "compress_watermark".equals(settingType)) {
 									// 只有当水印图片比原图的1/3还小时，才添加水印
-									if (watermark.getWidth() < fromPic.getWidth()/3 && watermark.getHeight() < fromPic.getHeight()/3) {
-										Thumbnails.of(fromPic).size(fromPic.getWidth(), fromPic.getHeight()).watermark(imageSetting.getPosition(), watermark, imageSetting.getOpacity()).toFile(toPic_big);
+									if (watermark.getWidth() < width/3 && watermark.getHeight() < height/3) {
+										Thumbnails.of(fromPic).size(width, height).watermark(imageSetting.getPosition(), watermark, imageSetting.getOpacity()).toFile(toPic);
+									} else {
+										// 否则只做压缩处理
+										Thumbnails.of(fromPic).size(width, height).toFile(toPic);
 									}
 								}
-								// 小图添加水印
-								if (imageSetting.getCriticalValue()<fileSize) {
-									if (Arrays.asList(imageSetting.getWatermarkObjArr()).contains("small") && "compress_watermark".equals(settingType)) {
-										// 只有当水印图片比原图的1/3还小时，才添加水印
-										if (watermark.getWidth() < width/3 && watermark.getHeight() < height/3) {
-											Thumbnails.of(fromPic).size(width, height).watermark(imageSetting.getPosition(), watermark, imageSetting.getOpacity()).toFile(toPic);
-										} else {
-											// 否则只做压缩处理
-											Thumbnails.of(fromPic).size(width, height).toFile(toPic);
-										}
-									}
-								}
-								
-								break;
-							default:
-								break;
+							}
 						}
 						
 						// 是否删除原图
-						if (imageSetting.isDeleteOriginalImage()) {
+						if (settingType.length()>0 && imageSetting.isDeleteOriginalImage()) {
 							originalFile.delete();
 						}
 					}

@@ -8,7 +8,7 @@ package cn.javaex.fileupload.entity;
 public class UploadSetting {
 	private boolean isGenerateByDate;              // 是否按照日期自动创建3级目录
 	private long maxSize;                          // 单个文件的大小上限（单位KB），0为不限制
-	private String[] fileTypeArr;                  // 文件类型限制，例如 {"doc", "docx"}
+	private String[] fileTypeArr;                  // 文件类型限制，例如 new String[]{"doc", "docx"}
 	
 	/**
 	 * 是否按照日期自动创建3级目录
