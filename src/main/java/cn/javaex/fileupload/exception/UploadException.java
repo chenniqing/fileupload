@@ -1,47 +1,50 @@
 package cn.javaex.fileupload.exception;
 
 /**
- * 上传异常
- * 
+ * 上传通用异常。
+ *
+ * <p>本异常作为 fileupload 2.0 工具包的基础运行时异常，
+ * 其他上传相关异常可继承自该异常。</p>
+ *
  * @author 陈霓清
+ * @since 2.0.0
  */
 public class UploadException extends RuntimeException {
-	
-	private static final long serialVersionUID = 1L;
 
-	/**
-	 * 构造新的UploadException
-	 */
-	public UploadException() {
-		super();
-	}
+    private static final long serialVersionUID = 1L;
 
-	/**
-	 * 构造新的UploadException
-	 *
-	 * @param 消息异常的原因
-	 */
-	public UploadException(String message) {
-		super(message);
-	}
+    /**
+     * 创建一个无消息的上传异常。
+     */
+    public UploadException() {
+        super();
+    }
 
-	/**
-	 * 构造新的UploadException
-	 *
-	 * @param 导致引发此异常的底层抛出
-	 */
-	public UploadException(Throwable cause) {
-		super(cause);
-	}
+    /**
+     * 创建一个带消息的上传异常。
+     *
+     * @param message 异常消息
+     */
+    public UploadException(String message) {
+        super(message);
+    }
 
-	/**
-	 * 构造新的UploadException
-	 *
-	 * @param message 消息异常的原因
-	 * @param cause   导致引发此异常的底层抛出
-	 */
-	public UploadException(String message, Throwable cause) {
-		super(message, cause);
-	}
+    /**
+     * 创建一个带消息和根异常的上传异常。
+     *
+     * @param message 异常消息
+     * @param cause   根异常
+     */
+    public UploadException(String message, Throwable cause) {
+        super(message, cause);
+    }
 
+    /**
+     * 创建一个带根异常的上传异常。
+     *
+     * @param cause 根异常
+     */
+    public UploadException(Throwable cause) {
+        super(cause);
+    }
 }
